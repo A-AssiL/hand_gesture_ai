@@ -96,7 +96,7 @@ pip install -r requirements.txt
 ## ▶️ Usage
 
 ```bash
-python app.py
+.\.venv\Scripts\python.exe app.py
 ```
 
 1. Pick a camera from the **Camera** dropdown.
