@@ -28,6 +28,7 @@ class VideoThread(QThread):
     frame_ready = Signal(object)   # annotated BGR numpy frame
     hands_updated = Signal(object)  # List[HandResult]
     analysis_updated = Signal(object)  # List[HandAnalysis]
+    gesture_updated = Signal(object)  # List[GestureResult]
     fps_updated = Signal(float)
     error = Signal(str)
 
@@ -65,6 +66,7 @@ class VideoThread(QThread):
             self.frame_ready.emit(result.frame)
             self.hands_updated.emit(result.hands)
             self.analysis_updated.emit(result.analyses)
+            self.gesture_updated.emit(result.gestures)
             self.fps_updated.emit(self._fps.fps)
 
         self._camera.release()
@@ -88,3 +90,11 @@ class VideoThread(QThread):
     def available_cameras(self) -> List[int]:
         """Return the list of openable camera indices."""
         return self._camera.list_available()
+
+    def set_model(self, model_path: str) -> bool:
+        """Load a trained gesture model into the running processor."""
+        return self._processor.load_model(model_path)
+
+    def use_rule_based(self) -> None:
+        """Switch the running processor back to the rule-based recognizer."""
+        self._processor.use_rule_based()

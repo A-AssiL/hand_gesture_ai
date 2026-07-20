@@ -38,6 +38,13 @@ analysis:
   spread_max_deg: 50.0         # index<->pinky angle mapped to 100% spread
   draw_overlay: true           # draw extended-finger count + facing on frame
 
+gesture:
+  enabled: true
+  backend: "rule_based"        # rule_based (no training) | random_forest (trained)
+  model_path: "models/gesture_rf.joblib"
+  min_confidence: 0.35         # ML predictions below this => "Unknown"
+  top_k: 3                     # probability rows shown in the gesture panel
+
 logging:
   level: "INFO"            # DEBUG | INFO | WARNING | ERROR | CRITICAL
   log_to_file: true

@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List
 
+from gestures.base import GestureRecognizer, GestureResult
+from gestures.rule_based import RuleBasedRecognizer
 from utils.logger import get_logger
 from vision.analysis import HandAnalysis, HandAnalyzer
 from vision.drawing import LandmarkPainter
@@ -37,8 +39,7 @@ class ProcessResult:
     frame: "np.ndarray"                       # annotated BGR frame
     hands: List[HandResult] = field(default_factory=list)
     analyses: List[HandAnalysis] = field(default_factory=list)  # one per hand
-    # Reserved for later phases (populated once analyzers are added):
-    # gestures ...
+    gestures: List[GestureResult] = field(default_factory=list)  # one per hand
 
 
 class FrameProcessor:
@@ -54,7 +55,57 @@ class FrameProcessor:
         self._painter = LandmarkPainter(config.display)
         self._analyzer = HandAnalyzer(config.analysis)
         self._analysis_enabled = config.analysis.enabled
+        self._gesture_enabled = config.gesture.enabled
+        self._recognizer: GestureRecognizer = self._build_recognizer()
         self._last_hand_count = 0
+
+    def _build_recognizer(self) -> GestureRecognizer:
+        """Create the configured recognizer, falling back to the rule-based one.
+
+        A trained Random Forest is used only when the backend is selected *and*
+        its model file exists; otherwise the always-available rule-based
+        recognizer is returned so gestures work with zero setup.
+        """
+        cfg = self._config.gesture
+        rule_based = RuleBasedRecognizer(self._config.analysis)
+        if cfg.backend == "random_forest" and cfg.model_path:
+            from pathlib import Path
+
+            if Path(cfg.model_path).exists():
+                try:
+                    from gestures.ml_classifier import RandomForestRecognizer
+
+                    model = RandomForestRecognizer(
+                        cfg.model_path, min_confidence=cfg.min_confidence
+                    )
+                    if model.is_ready():
+                        logger.info("Gesture backend: Random Forest (%s)", cfg.model_path)
+                        return model
+                except Exception as exc:  # pragma: no cover - depends on env
+                    logger.error("Falling back to rule-based recognizer: %s", exc)
+        logger.info("Gesture backend: rule-based")
+        return rule_based
+
+    def set_recognizer(self, recognizer: GestureRecognizer) -> None:
+        """Swap the active recognizer at runtime (e.g. after training/loading)."""
+        self._recognizer = recognizer
+        self._gesture_enabled = True
+
+    def load_model(self, model_path: str) -> bool:
+        """Load a trained model and make it the active recognizer."""
+        from gestures.ml_classifier import RandomForestRecognizer
+
+        model = RandomForestRecognizer(
+            model_path, min_confidence=self._config.gesture.min_confidence
+        )
+        if model.is_ready():
+            self.set_recognizer(model)
+            return True
+        return False
+
+    def use_rule_based(self) -> None:
+        """Revert to the dependency-free rule-based recognizer."""
+        self.set_recognizer(RuleBasedRecognizer(self._config.analysis))
 
     def process(self, frame) -> ProcessResult:
         """Detect hands in ``frame`` and draw overlays.
@@ -74,8 +125,15 @@ class FrameProcessor:
             if self._analysis_enabled
             else []
         )
-        annotated = self._painter.draw(frame, hands, analyses)
-        return ProcessResult(frame=annotated, hands=hands, analyses=analyses)
+        gestures = (
+            [self._recognizer.predict(hand) for hand in hands]
+            if self._gesture_enabled
+            else []
+        )
+        annotated = self._painter.draw(frame, hands, analyses, gestures)
+        return ProcessResult(
+            frame=annotated, hands=hands, analyses=analyses, gestures=gestures
+        )
 
     def close(self) -> None:
         """Release owned resources."""

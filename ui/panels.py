@@ -139,17 +139,45 @@ class GesturePanel(QGroupBox):
         self._gesture.setStyleSheet("font-size: 20px; font-weight: 700; color: #8ab4f8;")
         self._confidence = QLabel("Confidence: \u2014")
         self._confidence.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._breakdown = QLabel("")
+        self._breakdown.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._breakdown.setTextFormat(Qt.TextFormat.RichText)
+        self._breakdown.setStyleSheet("color: #9aa0a6;")
         layout.addWidget(self._gesture)
         layout.addWidget(self._confidence)
+        layout.addWidget(self._breakdown)
         layout.addStretch(1)
 
     def update_gesture(self, name: str, confidence: float) -> None:
         self._gesture.setText(name)
         self._confidence.setText(f"Confidence: {confidence * 100:.0f}%")
 
+    def update_predictions(self, gestures: Sequence, top_k: int = 3) -> None:
+        """Render the primary gesture plus its top-k class probabilities.
+
+        Args:
+            gestures: A sequence of ``GestureResult`` (one per detected hand);
+                the first hand drives the headline gesture.
+            top_k: How many probability rows to show.
+        """
+        if not gestures:
+            self.reset()
+            return
+        primary = gestures[0]
+        self._gesture.setText(primary.name)
+        self._confidence.setText(f"Confidence: {primary.confidence * 100:.0f}%")
+        probs = getattr(primary, "probabilities", {}) or {}
+        if probs:
+            ordered = sorted(probs.items(), key=lambda kv: kv[1], reverse=True)[:top_k]
+            lines = [f"{name}: {value * 100:.0f}%" for name, value in ordered]
+            self._breakdown.setText("<br>".join(lines))
+        else:
+            self._breakdown.setText("")
+
     def reset(self) -> None:
         self._gesture.setText("\u2014")
         self._confidence.setText("Confidence: \u2014")
+        self._breakdown.setText("")
 
 
 class LogPanel(QGroupBox):

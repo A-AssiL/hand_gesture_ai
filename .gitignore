@@ -28,3 +28,5 @@ assets/recordings/
 .DS_Store
 .idea/
 .vscode/
+models/gesture_rf.report.json
+models/gesture_rf.report.txt

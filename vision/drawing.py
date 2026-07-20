@@ -14,6 +14,7 @@ from vision.landmarks import HAND_CONNECTIONS, HandResult
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from config.settings import DisplayConfig
+    from gestures.base import GestureResult
     from vision.analysis import HandAnalysis
 
 # BGR colors
@@ -23,6 +24,7 @@ _COLOR_BBOX: Tuple[int, int, int] = (0, 165, 255)
 _COLOR_TEXT: Tuple[int, int, int] = (255, 255, 255)
 _COLOR_LABEL_BG: Tuple[int, int, int] = (0, 0, 0)
 _COLOR_ANALYSIS: Tuple[int, int, int] = (0, 255, 255)
+_COLOR_GESTURE: Tuple[int, int, int] = (0, 220, 120)
 
 
 class LandmarkPainter:
@@ -36,6 +38,7 @@ class LandmarkPainter:
         frame,
         hands: Iterable[HandResult],
         analyses: "Optional[Sequence[HandAnalysis]]" = None,
+        gestures: "Optional[Sequence[GestureResult]]" = None,
     ):
         """Draw every enabled overlay for all hands. Mutates and returns frame.
 
@@ -44,10 +47,13 @@ class LandmarkPainter:
             hands: Detected hands to render.
             analyses: Optional per-hand analysis (same order/length as ``hands``);
                 when present, a compact summary is drawn beneath each box.
+            gestures: Optional per-hand gesture results; when present, the
+                recognized gesture name is drawn above each box.
         """
         height, width = frame.shape[:2]
         hand_list = list(hands)
         analysis_list = list(analyses) if analyses else []
+        gesture_list = list(gestures) if gestures else []
         for i, hand in enumerate(hand_list):
             if self._config.draw_bounding_box:
                 self._draw_bounding_box(frame, hand, width, height)
@@ -57,7 +63,31 @@ class LandmarkPainter:
                 self._draw_landmarks(frame, hand, width, height)
             if i < len(analysis_list):
                 self._draw_analysis(frame, hand, analysis_list[i], width, height)
+            if i < len(gesture_list):
+                self._draw_gesture(frame, hand, gesture_list[i], width, height)
         return frame
+
+    def _draw_gesture(
+        self, frame, hand: HandResult, gesture, width: int, height: int
+    ) -> None:
+        """Draw the recognized gesture name above the hand's bounding box."""
+        x_min, y_min, _, _ = hand.bounding_box(width, height)
+        label = f"{gesture.name} {gesture.confidence * 100:.0f}%"
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+        y = max(y_min - 26, th + 4)
+        cv2.rectangle(
+            frame, (x_min, y - th - 6), (x_min + tw + 8, y + 4), _COLOR_LABEL_BG, -1
+        )
+        cv2.putText(
+            frame,
+            label,
+            (x_min + 4, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            _COLOR_GESTURE,
+            2,
+            cv2.LINE_AA,
+        )
 
     def _draw_analysis(
         self, frame, hand: HandResult, analysis: "HandAnalysis", width: int, height: int

@@ -108,9 +108,9 @@ class MainWindow(QMainWindow):
         self._capture_btn = QPushButton("Capture Dataset")
         self._capture_btn.clicked.connect(lambda: self._coming_soon("Dataset recording", 2))
         self._train_btn = QPushButton("Train Model")
-        self._train_btn.clicked.connect(lambda: self._coming_soon("Model training", 3))
+        self._train_btn.clicked.connect(self.train_model)
         self._load_btn = QPushButton("Load Model")
-        self._load_btn.clicked.connect(lambda: self._coming_soon("Model loading", 3))
+        self._load_btn.clicked.connect(self.load_model)
         self._record_btn = QPushButton("Record Video")
         self._record_btn.clicked.connect(lambda: self._coming_soon("Video recording", 4))
         self._settings_btn = QPushButton("Settings")
@@ -174,6 +174,7 @@ class MainWindow(QMainWindow):
         self._thread.frame_ready.connect(self._on_frame)
         self._thread.hands_updated.connect(self._on_hands)
         self._thread.analysis_updated.connect(self._on_analysis)
+        self._thread.gesture_updated.connect(self._on_gestures)
         self._thread.fps_updated.connect(self._stats_panel.update_fps)
         self._thread.error.connect(self._on_error)
         index = self._camera_combo.currentData()
@@ -217,6 +218,73 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Screenshot saved: {path}")
             logger.info("Screenshot saved: %s", path)
 
+    def train_model(self) -> None:
+        """Train a gesture model (bootstrapping synthetic data) and use it live."""
+        from pathlib import Path
+
+        model_path = self._config.gesture.model_path
+        dataset_path = "datasets/synthetic.csv"
+        try:
+            from training.synthetic import generate_dataset
+            from training.trainer import GestureModelTrainer
+        except ImportError as exc:  # pragma: no cover - depends on env
+            self._needs_sklearn(exc)
+            return
+        try:
+            if not Path(dataset_path).exists():
+                self.statusBar().showMessage("Generating synthetic dataset\u2026")
+                generate_dataset(dataset_path)
+            self.statusBar().showMessage("Training model\u2026 this can take a moment")
+            report = GestureModelTrainer().train_from_dataset(dataset_path, model_path)
+        except ImportError as exc:  # pragma: no cover - depends on env
+            self._needs_sklearn(exc)
+            return
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("Training failed")
+            QMessageBox.critical(self, "Train Model", f"Training failed:\n{exc}")
+            return
+        logger.info(
+            "Model trained: accuracy=%.3f f1=%.3f", report.accuracy, report.f1_macro
+        )
+        QMessageBox.information(self, "Training complete", report.summary())
+        self._activate_model(model_path)
+
+    def load_model(self) -> None:
+        """Pick a trained ``.joblib`` model bundle and use it live."""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load Model", "models", "Model bundle (*.joblib)"
+        )
+        if path:
+            self._activate_model(path)
+
+    def _activate_model(self, model_path: str) -> None:
+        """Make the model at ``model_path`` the active gesture recognizer."""
+        self._config.gesture.backend = "random_forest"
+        self._config.gesture.model_path = model_path
+        if self._thread is not None:
+            if self._thread.set_model(model_path):
+                self.statusBar().showMessage(f"Gesture model active: {model_path}")
+                logger.info("Gesture model activated: %s", model_path)
+            else:
+                QMessageBox.warning(
+                    self, "Load Model", f"Could not load model:\n{model_path}"
+                )
+        else:
+            self.statusBar().showMessage(
+                "Model saved. It will be used when you start the camera."
+            )
+
+    def _needs_sklearn(self, exc: Exception) -> None:
+        """Tell the user how to install the optional ML dependencies."""
+        QMessageBox.warning(
+            self,
+            "Model training",
+            "Training and loading models need scikit-learn and joblib.\n\n"
+            "Install them with:\n    pip install scikit-learn joblib\n\n"
+            f"({exc})",
+        )
+        logger.warning("scikit-learn/joblib unavailable: %s", exc)
+
     # ---------------------------------------------------------------- slots
     def _on_frame(self, frame) -> None:
         self._last_frame = frame
@@ -232,6 +300,10 @@ class MainWindow(QMainWindow):
             self._finger_panel.update_states(analyses[0].finger_states.as_labels())
         else:
             self._finger_panel.reset()
+
+    def _on_gestures(self, gestures: list) -> None:
+        """Update the Detected Gesture panel from per-hand predictions."""
+        self._gesture_panel.update_predictions(gestures, self._config.gesture.top_k)
 
     def _on_error(self, message: str) -> None:
         QMessageBox.critical(self, "Camera Error", message)

@@ -83,6 +83,21 @@ class AnalysisConfig:
 
 
 @dataclass
+class GestureConfig:
+    """Gesture-recognition options."""
+
+    enabled: bool = True
+    # "rule_based" (no training required) or "random_forest" (trained model).
+    backend: str = "rule_based"
+    # Path to the trained model bundle used when backend == "random_forest".
+    model_path: str = "models/gesture_rf.joblib"
+    # ML predictions below this probability are reported as "Unknown".
+    min_confidence: float = 0.35
+    # How many class probabilities to show in the Detected Gesture panel.
+    top_k: int = 3
+
+
+@dataclass
 class LoggingConfig:
     """Logging configuration (console + rotating file handler)."""
 
@@ -103,6 +118,7 @@ class Config:
     hand_tracking: HandTrackingConfig = field(default_factory=HandTrackingConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
     analysis: AnalysisConfig = field(default_factory=AnalysisConfig)
+    gesture: GestureConfig = field(default_factory=GestureConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
 
@@ -138,6 +154,7 @@ def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> Config:
         hand_tracking=_build(HandTrackingConfig, data.get("hand_tracking")),
         display=_build(DisplayConfig, data.get("display")),
         analysis=_build(AnalysisConfig, data.get("analysis")),
+        gesture=_build(GestureConfig, data.get("gesture")),
         logging=_build(LoggingConfig, data.get("logging")),
     )
 
