@@ -8,6 +8,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from vision.analysis import (
+    FINGER_NAMES,
+    FingerStates,
+    HandAnalysis,
+    HandAnalyzer,
+    HandMeasurements,
+    HandOrientation,
+)
 from vision.landmarks import HAND_CONNECTIONS, HandLandmark, HandResult, Landmark
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -19,6 +27,12 @@ __all__ = [
     "HandLandmark",
     "HandResult",
     "Landmark",
+    "FINGER_NAMES",
+    "FingerStates",
+    "HandAnalysis",
+    "HandAnalyzer",
+    "HandMeasurements",
+    "HandOrientation",
     "HandTracker",
     "LandmarkPainter",
     "draw_fps",

@@ -31,6 +31,13 @@ display:
   landmark_radius: 4
   connection_thickness: 2
 
+analysis:
+  enabled: true
+  finger_straight_deg: 160.0   # PIP/IP angle >= this => finger fully straight
+  finger_curled_deg: 30.0      # PIP/IP angle <= this => finger fully curled
+  spread_max_deg: 50.0         # index<->pinky angle mapped to 100% spread
+  draw_overlay: true           # draw extended-finger count + facing on frame
+
 logging:
   level: "INFO"            # DEBUG | INFO | WARNING | ERROR | CRITICAL
   log_to_file: true

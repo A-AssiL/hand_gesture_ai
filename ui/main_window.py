@@ -173,6 +173,7 @@ class MainWindow(QMainWindow):
         self._thread = VideoThread(self._config)
         self._thread.frame_ready.connect(self._on_frame)
         self._thread.hands_updated.connect(self._on_hands)
+        self._thread.analysis_updated.connect(self._on_analysis)
         self._thread.fps_updated.connect(self._stats_panel.update_fps)
         self._thread.error.connect(self._on_error)
         index = self._camera_combo.currentData()
@@ -194,7 +195,7 @@ class MainWindow(QMainWindow):
         self._video.clear_frame()
         self._stats_panel.update_fps(0.0)
         self._stats_panel.update_hands(0)
-        self._hand_panel.update_hands([])
+        self._hand_panel.update_analyses([])
         self._finger_panel.reset()
         self._gesture_panel.reset()
         self._start_btn.setEnabled(True)
@@ -223,7 +224,14 @@ class MainWindow(QMainWindow):
 
     def _on_hands(self, hands: List[HandResult]) -> None:
         self._stats_panel.update_hands(len(hands))
-        self._hand_panel.update_hands(hands)
+
+    def _on_analysis(self, analyses: list) -> None:
+        """Update the hand-info and finger panels from per-hand analyses."""
+        self._hand_panel.update_analyses(analyses)
+        if analyses:
+            self._finger_panel.update_states(analyses[0].finger_states.as_labels())
+        else:
+            self._finger_panel.reset()
 
     def _on_error(self, message: str) -> None:
         QMessageBox.critical(self, "Camera Error", message)

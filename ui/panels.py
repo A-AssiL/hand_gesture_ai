@@ -7,7 +7,7 @@ their analyzers land in later phases.
 """
 from __future__ import annotations
 
-from typing import List
+from typing import TYPE_CHECKING, List, Sequence
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -18,6 +18,9 @@ from PySide6.QtWidgets import (
 )
 
 from vision.landmarks import HandResult
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from vision.analysis import HandAnalysis
 
 _FINGER_NAMES = ("Thumb", "Index", "Middle", "Ring", "Pinky")
 
@@ -71,6 +74,27 @@ class HandInfoPanel(QGroupBox):
             )
         self._body.setText("<br><br>".join(blocks))
 
+    def update_analyses(self, analyses: "Sequence[HandAnalysis]") -> None:
+        """Render the rich analysis (orientation, measurements, description)."""
+        if not analyses:
+            self._body.setText("No hand detected")
+            return
+        blocks = []
+        for i, a in enumerate(analyses, start=1):
+            m = a.measurements
+            o = a.orientation
+            blocks.append(
+                f"<b>Hand {i}: {a.handedness}</b> ({a.score * 100:.0f}%)<br>"
+                f"{o.facing} facing &middot; pointing {o.pointing}<br>"
+                f"Rotation: {o.rotation_deg:.0f}&deg; &middot; tilt: {o.tilt_deg:.0f}&deg;<br>"
+                f"Fingers: {a.finger_states.count_extended}/5 extended<br>"
+                f"Open {m.openness * 100:.0f}% &middot; grip {m.grip * 100:.0f}%"
+                f" &middot; spread {m.spread * 100:.0f}%<br>"
+                f"Palm: {m.palm_width:.2f} w &times; {m.palm_height:.2f} h<br>"
+                f"<i>{a.description}</i>"
+            )
+        self._body.setText("<br><br>".join(blocks))
+
 
 class FingerStatePanel(QGroupBox):
     """Per-finger extended/folded states (populated in Phase 2)."""
@@ -83,17 +107,25 @@ class FingerStatePanel(QGroupBox):
             label = QLabel(f"{name}: \u2014")
             self._labels[name] = label
             layout.addWidget(label)
+        self._summary = QLabel("Extended: \u2014")
+        self._summary.setStyleSheet("font-weight: 700; color: #8ab4f8;")
+        layout.addWidget(self._summary)
         layout.addStretch(1)
 
     def update_states(self, states: dict) -> None:
         """Update finger labels from a ``{finger: 'Extended'|'Folded'}`` mapping."""
+        count = 0
         for name in _FINGER_NAMES:
             value = states.get(name, "\u2014")
+            if value == "Extended":
+                count += 1
             self._labels[name].setText(f"{name}: {value}")
+        self._summary.setText(f"Extended: {count}/5")
 
     def reset(self) -> None:
         for name in _FINGER_NAMES:
             self._labels[name].setText(f"{name}: \u2014")
+        self._summary.setText("Extended: \u2014")
 
 
 class GesturePanel(QGroupBox):

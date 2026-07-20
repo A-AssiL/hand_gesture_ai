@@ -6,7 +6,7 @@ be toggled from the configuration file or the UI at runtime.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Tuple
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Tuple
 
 import cv2
 
@@ -14,6 +14,7 @@ from vision.landmarks import HAND_CONNECTIONS, HandResult
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from config.settings import DisplayConfig
+    from vision.analysis import HandAnalysis
 
 # BGR colors
 _COLOR_LANDMARK: Tuple[int, int, int] = (0, 255, 0)
@@ -21,6 +22,7 @@ _COLOR_CONNECTION: Tuple[int, int, int] = (255, 200, 0)
 _COLOR_BBOX: Tuple[int, int, int] = (0, 165, 255)
 _COLOR_TEXT: Tuple[int, int, int] = (255, 255, 255)
 _COLOR_LABEL_BG: Tuple[int, int, int] = (0, 0, 0)
+_COLOR_ANALYSIS: Tuple[int, int, int] = (0, 255, 255)
 
 
 class LandmarkPainter:
@@ -29,17 +31,54 @@ class LandmarkPainter:
     def __init__(self, config: "DisplayConfig") -> None:
         self._config = config
 
-    def draw(self, frame, hands: Iterable[HandResult]):
-        """Draw every enabled overlay for all hands. Mutates and returns frame."""
+    def draw(
+        self,
+        frame,
+        hands: Iterable[HandResult],
+        analyses: "Optional[Sequence[HandAnalysis]]" = None,
+    ):
+        """Draw every enabled overlay for all hands. Mutates and returns frame.
+
+        Args:
+            frame: BGR image to draw on (mutated in place).
+            hands: Detected hands to render.
+            analyses: Optional per-hand analysis (same order/length as ``hands``);
+                when present, a compact summary is drawn beneath each box.
+        """
         height, width = frame.shape[:2]
-        for hand in hands:
+        hand_list = list(hands)
+        analysis_list = list(analyses) if analyses else []
+        for i, hand in enumerate(hand_list):
             if self._config.draw_bounding_box:
                 self._draw_bounding_box(frame, hand, width, height)
             if self._config.draw_skeleton:
                 self._draw_skeleton(frame, hand, width, height)
             if self._config.draw_landmarks:
                 self._draw_landmarks(frame, hand, width, height)
+            if i < len(analysis_list):
+                self._draw_analysis(frame, hand, analysis_list[i], width, height)
         return frame
+
+    def _draw_analysis(
+        self, frame, hand: HandResult, analysis: "HandAnalysis", width: int, height: int
+    ) -> None:
+        """Draw a compact analysis summary beneath the hand's bounding box."""
+        _, _, x_max, y_max = hand.bounding_box(width, height)
+        x_min = hand.bounding_box(width, height)[0]
+        text = (
+            f"{analysis.finger_states.count_extended}/5 up | "
+            f"{analysis.orientation.facing} | {analysis.orientation.pointing}"
+        )
+        cv2.putText(
+            frame,
+            text,
+            (x_min, min(y_max + 18, height - 4)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            _COLOR_ANALYSIS,
+            1,
+            cv2.LINE_AA,
+        )
 
     def _draw_skeleton(self, frame, hand: HandResult, width: int, height: int) -> None:
         for start, end in HAND_CONNECTIONS:

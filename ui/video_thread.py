@@ -27,6 +27,7 @@ class VideoThread(QThread):
 
     frame_ready = Signal(object)   # annotated BGR numpy frame
     hands_updated = Signal(object)  # List[HandResult]
+    analysis_updated = Signal(object)  # List[HandAnalysis]
     fps_updated = Signal(float)
     error = Signal(str)
 
@@ -63,6 +64,7 @@ class VideoThread(QThread):
             self._fps.tick()
             self.frame_ready.emit(result.frame)
             self.hands_updated.emit(result.hands)
+            self.analysis_updated.emit(result.analyses)
             self.fps_updated.emit(self._fps.fps)
 
         self._camera.release()

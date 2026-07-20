@@ -65,6 +65,24 @@ class DisplayConfig:
 
 
 @dataclass
+class AnalysisConfig:
+    """Hand-analysis (finger states, orientation, measurements) options."""
+
+    enabled: bool = True
+    # A finger with a PIP/IP joint angle at or above this (degrees) counts as
+    # fully straight; at or below ``finger_curled_deg`` it counts as fully
+    # curled. Values in between are interpolated for the openness metric.
+    finger_straight_deg: float = 160.0
+    finger_curled_deg: float = 30.0
+    # Angle (degrees) between the index and pinky directions treated as 100%
+    # spread when normalizing the spread metric.
+    spread_max_deg: float = 50.0
+    # Draw a small analysis overlay (extended-finger count + palm facing)
+    # beneath each hand's bounding box.
+    draw_overlay: bool = True
+
+
+@dataclass
 class LoggingConfig:
     """Logging configuration (console + rotating file handler)."""
 
@@ -84,6 +102,7 @@ class Config:
     camera: CameraConfig = field(default_factory=CameraConfig)
     hand_tracking: HandTrackingConfig = field(default_factory=HandTrackingConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
+    analysis: AnalysisConfig = field(default_factory=AnalysisConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
 
@@ -118,6 +137,7 @@ def load_config(path: Path | str = DEFAULT_CONFIG_PATH) -> Config:
         camera=_build(CameraConfig, data.get("camera")),
         hand_tracking=_build(HandTrackingConfig, data.get("hand_tracking")),
         display=_build(DisplayConfig, data.get("display")),
+        analysis=_build(AnalysisConfig, data.get("analysis")),
         logging=_build(LoggingConfig, data.get("logging")),
     )
 

@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List
 
 from utils.logger import get_logger
+from vision.analysis import HandAnalysis, HandAnalyzer
 from vision.drawing import LandmarkPainter
 from vision.hand_tracker import HandTracker
 from vision.landmarks import HandResult
@@ -35,8 +36,9 @@ class ProcessResult:
 
     frame: "np.ndarray"                       # annotated BGR frame
     hands: List[HandResult] = field(default_factory=list)
+    analyses: List[HandAnalysis] = field(default_factory=list)  # one per hand
     # Reserved for later phases (populated once analyzers are added):
-    # descriptions, gestures, orientations, measurements ...
+    # gestures ...
 
 
 class FrameProcessor:
@@ -50,6 +52,8 @@ class FrameProcessor:
         self._config = config
         self._tracker = HandTracker(config.hand_tracking)
         self._painter = LandmarkPainter(config.display)
+        self._analyzer = HandAnalyzer(config.analysis)
+        self._analysis_enabled = config.analysis.enabled
         self._last_hand_count = 0
 
     def process(self, frame) -> ProcessResult:
@@ -65,8 +69,13 @@ class FrameProcessor:
         if len(hands) != self._last_hand_count:
             logger.info("Hands detected: %s", len(hands))
             self._last_hand_count = len(hands)
-        annotated = self._painter.draw(frame, hands)
-        return ProcessResult(frame=annotated, hands=hands)
+        analyses = (
+            [self._analyzer.analyze(hand) for hand in hands]
+            if self._analysis_enabled
+            else []
+        )
+        annotated = self._painter.draw(frame, hands, analyses)
+        return ProcessResult(frame=annotated, hands=hands, analyses=analyses)
 
     def close(self) -> None:
         """Release owned resources."""
