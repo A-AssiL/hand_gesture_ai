@@ -1,0 +1,30 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs & runtime output
+logs/
+*.log
+
+# Trained models & recorded datasets (kept out of VCS by default)
+models/*.pkl
+models/*.joblib
+models/*.pt
+datasets/**/*.csv
+datasets/**/*.npy
+
+# Screenshots & recordings
+assets/captures/
+assets/recordings/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/

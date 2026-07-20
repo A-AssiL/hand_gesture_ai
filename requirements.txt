@@ -1,0 +1,17 @@
+# ---- Core runtime dependencies (Phase 1) ----
+PySide6>=6.6.0
+opencv-python>=4.9.0
+mediapipe>=0.10.14
+numpy>=1.26.0,<2.0.0
+PyYAML>=6.0.1
+
+# ---- Machine learning (used from Phase 3 onward) ----
+scikit-learn>=1.4.0
+pandas>=2.2.0
+joblib>=1.3.0
+
+# ---- Optional / future support (kept commented to keep the base install light) ----
+# torch>=2.2.0            # PyTorch neural network classifiers
+# xgboost>=2.0.0          # Gradient boosted trees
+# matplotlib>=3.8.0       # Training curves & confusion matrix plots
+# seaborn>=0.13.0         # Nicer confusion-matrix heatmaps

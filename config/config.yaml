@@ -1,0 +1,40 @@
+# ============================================================================
+# AI Hand Gesture Recognition - Main configuration file
+# All values are typed and validated in config/settings.py.
+# ============================================================================
+
+app:
+  name: "AI Hand Gesture Recognition"
+  version: "0.1.0"
+  theme: "dark"            # dark | light (only 'dark' implemented in Phase 1)
+
+camera:
+  index: 0                 # default webcam index
+  width: 1280              # capture width  (adjustable resolution)
+  height: 720              # capture height
+  fps: 30                  # target capture FPS (30-60)
+  flip_horizontal: true    # mirror the frame so it feels natural
+  max_scan_index: 5        # how many indices to probe when listing cameras
+
+hand_tracking:
+  max_num_hands: 2         # detect up to two hands simultaneously
+  model_complexity: 1      # 0 (fast) or 1 (accurate)
+  min_detection_confidence: 0.6
+  min_tracking_confidence: 0.5
+
+display:
+  draw_landmarks: true
+  draw_skeleton: true
+  draw_bounding_box: true
+  draw_landmark_ids: true
+  show_fps: true
+  landmark_radius: 4
+  connection_thickness: 2
+
+logging:
+  level: "INFO"            # DEBUG | INFO | WARNING | ERROR | CRITICAL
+  log_to_file: true
+  log_dir: "logs"
+  log_file: "app.log"
+  max_bytes: 1048576       # 1 MB per file before rotation
+  backup_count: 3
